@@ -1,0 +1,121 @@
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f3f6fb;
+  color: #202b3c;
+}
+
+.container {
+  max-width: 1200px;
+  margin: auto;
+  padding: 24px;
+}
+
+header {
+  text-align: center;
+  background: #183b65;
+  color: white;
+  padding: 25px 15px;
+  border-radius: 12px;
+  margin-bottom: 22px;
+}
+
+header h1 { margin: 0 0 8px; font-size: 28px; color: #dce8f7;}
+header p { margin: 0; color: #dce8f7; }
+
+.panel {
+  background: white;
+  padding: 22px;
+  margin-bottom: 22px;
+  border-radius: 12px;
+  box-shadow: 0 3px 14px #152b4510;
+}
+
+h2 { margin-top: 0; color: #183b65; }
+
+.student-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+label { display: flex; flex-direction: column; gap: 7px; font-weight: 600; }
+
+input {
+  width: 100%;
+  padding: 11px;
+  border: 1px solid #ccd5e0;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+input:focus { outline: 2px solid #9bc5fa; border-color: #2769b0; }
+
+button {
+  padding: 10px 14px;
+  border: none;
+  border-radius: 6px;
+  background: #2164a5;
+  color: white;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+button:hover { opacity: .88; }
+button:disabled { opacity: .55; cursor: not-allowed; }
+
+.form-actions {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+}
+
+.secondary { background: #64748b; }
+.danger { background: #c63838; }
+
+.search-form {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+  max-width: 650px;
+}
+
+.search-form input { flex: 1; }
+
+.table-wrap { overflow-x: auto; }
+
+table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+
+th, td {
+  text-align: left;
+  padding: 12px 10px;
+  border-bottom: 1px solid #e4eaf1;
+}
+
+th { background: #eaf1f9; color: #183b65; }
+.actions { display: flex; gap: 7px; }
+.empty { text-align: center; padding: 25px; color: #64748b; }
+
+.message {
+  padding: 13px;
+  margin-bottom: 18px;
+  background: #d9f5e4;
+  color: #17663a;
+  border-radius: 7px;
+}
+
+.message.error { background: #ffe1e1; color: #a11b1b; }
+.close { float: right; padding: 0 5px; background: transparent; color: inherit; }
+footer { text-align: center; padding: 12px; color: #64748b; }
+
+@media (max-width: 700px) {
+  .container { padding: 12px; }
+  header h1 { font-size: 22px; }
+  .student-form { grid-template-columns: 1fr; }
+  .form-actions { align-items: center; }
+  .panel { padding: 15px; }
+  .search-form { flex-wrap: wrap; }
+}

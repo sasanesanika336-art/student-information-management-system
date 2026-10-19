@@ -35,9 +35,15 @@ export const verifier = {
       const permissionClaim =
         Array.isArray(payload.permissions) ? payload.permissions : [];
 
-      const scopes = [
+            const scopes = [
         ...new Set([...scopeClaim, ...permissionClaim])
       ].filter(scope => typeof scope === "string" && scope.length > 0);
+
+      console.log("Auth0 permission diagnostic:", {
+        hasRead: scopes.includes("read:students"),
+        hasWrite: scopes.includes("write:students"),
+        scopeCount: scopes.length
+      });
 
       return {
         token,

@@ -43,6 +43,10 @@ function result(message, isError = false) {
 
 function hasScope(ctx, requiredScope) {
   const scopes = ctx?.http?.authInfo?.scopes ?? [];
+
+  console.log("[MCP Auth] Required permission:", requiredScope);
+  console.log("[MCP Auth] Received permissions:", scopes);
+
   return scopes.includes(requiredScope);
 }
 

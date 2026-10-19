@@ -42,7 +42,7 @@ function result(message, isError = false) {
 }
 
 function hasScope(ctx, requiredScope) {
-  const scopes = ctx?.http?.authInfo?.scopes ?? [];
+  const scopes = ctx?.authInfo?.scopes ?? [];
   return scopes.includes(requiredScope);
 }
 

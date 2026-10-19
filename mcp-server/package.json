@@ -10,12 +10,14 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "@modelcontextprotocol/express": "^2.0.2",
     "@modelcontextprotocol/node": "^2.1.1",
     "@modelcontextprotocol/server": "^2.3.1",
     "express": "^5.3.0",
+    "express-oauth2-jwt-bearer": "^1.11.0",
+    "jose": "^6.2.12",
     "zod": "^4.6.7"
   }
 }

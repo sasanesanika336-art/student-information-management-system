@@ -1,11 +1,29 @@
-﻿import { McpServer, createMcpHandler } from "@modelcontextprotocol/server";
-import { createMcpExpressApp } from "@modelcontextprotocol/express";
+﻿import {
+  McpServer,
+  createMcpHandler
+} from "@modelcontextprotocol/server";
+import {
+  createMcpExpressApp,
+  requireBearerAuth,
+  mcpAuthMetadataRouter,
+  getOAuthProtectedResourceMetadataUrl
+} from "@modelcontextprotocol/express";
 import { toNodeHandler } from "@modelcontextprotocol/node";
 import * as z from "zod/v4";
+import { verifier } from "./auth.mjs";
+import { oauthMetadata } from "./oauth-metadata.mjs";
 
 const API_URL =
   process.env.STUDENT_API_URL ||
   "https://student-information-management-system-api.onrender.com/api/students";
+
+const resourceUrl = new URL(
+  process.env.AUTH0_AUDIENCE ||
+  "https://student-information-mcp.onrender.com"
+);
+
+const resourceMetadataUrl =
+  getOAuthProtectedResourceMetadataUrl(resourceUrl);
 
 const studentFields = {
   studentId: z.string().trim().min(1).describe("Unique student ID"),
@@ -21,6 +39,11 @@ function result(message, isError = false) {
     content: [{ type: "text", text: message }],
     ...(isError ? { isError: true } : {})
   };
+}
+
+function hasScope(ctx, requiredScope) {
+  const scopes = ctx?.http?.authInfo?.scopes ?? [];
+  return scopes.includes(requiredScope);
 }
 
 async function apiRequest(url, options = {}) {
@@ -42,7 +65,9 @@ async function apiRequest(url, options = {}) {
   }
 
   if (!response.ok) {
-    throw new Error(`Student API returned HTTP ${response.status}: ${data.message || "Request failed"}`);
+    throw new Error(
+      `Student API returned HTTP ${response.status}: ${data.message || "Request failed"}`
+    );
   }
 
   return data;
@@ -51,16 +76,20 @@ async function apiRequest(url, options = {}) {
 function createServer() {
   const server = new McpServer({
     name: "student-information-mcp",
-    version: "1.1.0"
+    version: "1.2.0"
   });
 
   server.registerTool(
     "list_students",
     {
-      description: "Retrieve all student records. Returns personal student information, so use only for authorized purposes.",
+      description: "Retrieve all student records. Requires read:students permission.",
       inputSchema: z.object({})
     },
-    async () => {
+    async (_args, ctx) => {
+      if (!hasScope(ctx, "read:students")) {
+        return result("Forbidden: read:students permission is required.", true);
+      }
+
       try {
         const students = await apiRequest(API_URL);
         return result(JSON.stringify(students, null, 2));
@@ -73,12 +102,16 @@ function createServer() {
   server.registerTool(
     "search_student",
     {
-      description: "Search students by student ID, name, or email.",
+      description: "Search students by student ID, name, or email. Requires read:students permission.",
       inputSchema: z.object({
         query: z.string().trim().min(1).describe("Student ID, name, or email")
       })
     },
-    async ({ query }) => {
+    async ({ query }, ctx) => {
+      if (!hasScope(ctx, "read:students")) {
+        return result("Forbidden: read:students permission is required.", true);
+      }
+
       try {
         const students = await apiRequest(API_URL);
         const term = query.toLowerCase();
@@ -99,13 +132,17 @@ function createServer() {
   server.registerTool(
     "insert_student",
     {
-      description: "Insert a student record. Requires confirm=true to create the record.",
+      description: "Insert a student record. Requires write:students permission and confirm=true.",
       inputSchema: z.object({
         ...studentFields,
         confirm: z.boolean().describe("Must be true to authorize insertion")
       })
     },
-    async ({ confirm, ...student }) => {
+    async ({ confirm, ...student }, ctx) => {
+      if (!hasScope(ctx, "write:students")) {
+        return result("Forbidden: write:students permission is required.", true);
+      }
+
       if (!confirm) {
         return result("Insertion cancelled. Set confirm=true only when authorized to add this student.", true);
       }
@@ -125,7 +162,7 @@ function createServer() {
   server.registerTool(
     "update_student",
     {
-      description: "Update all editable fields for a student identified by student ID. Requires confirm=true.",
+      description: "Update a student by ID. Requires write:students permission and confirm=true.",
       inputSchema: z.object({
         studentId: z.string().trim().min(1).describe("Existing student ID"),
         name: studentFields.name,
@@ -136,7 +173,11 @@ function createServer() {
         confirm: z.boolean().describe("Must be true to authorize the update")
       })
     },
-    async ({ studentId, confirm, ...updates }) => {
+    async ({ studentId, confirm, ...updates }, ctx) => {
+      if (!hasScope(ctx, "write:students")) {
+        return result("Forbidden: write:students permission is required.", true);
+      }
+
       if (!confirm) {
         return result("Update cancelled. Set confirm=true only after verifying the student and changes.", true);
       }
@@ -159,13 +200,17 @@ function createServer() {
   server.registerTool(
     "delete_student",
     {
-      description: "Permanently delete a student by student ID. Requires confirm=true.",
+      description: "Permanently delete a student by ID. Requires write:students permission and confirm=true.",
       inputSchema: z.object({
         studentId: z.string().trim().min(1).describe("Exact student ID to delete"),
         confirm: z.boolean().describe("Must be true to authorize permanent deletion")
       })
     },
-    async ({ studentId, confirm }) => {
+    async ({ studentId, confirm }, ctx) => {
+      if (!hasScope(ctx, "write:students")) {
+        return result("Forbidden: write:students permission is required.", true);
+      }
+
       if (!confirm) {
         return result("Deletion cancelled. Set confirm=true only after verifying the exact student ID and obtaining authorization.", true);
       }
@@ -196,14 +241,50 @@ const app = createMcpExpressApp({
   ]
 });
 
+app.use(
+  mcpAuthMetadataRouter({
+    oauthMetadata,
+    resourceServerUrl: resourceUrl
+  })
+);
+
 const handler = createMcpHandler(createServer);
 const nodeHandler = toNodeHandler(handler);
 
-app.all("/mcp", (req, res) => {
-  void nodeHandler(req, res, req.body);
-});
 
-app.get("/", (req, res) => {
+const requireAuthorizationHeader = (req, res, next) => {
+  const authorization = req.get("authorization");
+
+  if (!authorization || !/^Bearer\s+\S+$/i.test(authorization)) {
+    res.set(
+      "WWW-Authenticate",
+      `Bearer resource_metadata="${resourceMetadataUrl}"`
+    );
+
+    return res.status(401).json({
+      error: "invalid_token",
+      error_description: "A valid Bearer Authorization header is required."
+    });
+  }
+
+  next();
+};
+
+app.all(
+  "/mcp",
+  requireAuthorizationHeader,
+  requireBearerAuth({
+    verifier,
+    expectedResource: resourceUrl,
+    resourceMetadataUrl
+  }),
+  (req, res) => {
+    void nodeHandler(req, res, req.body);
+  }
+);
+
+
+app.get("/", (_req, res) => {
   res.json({ message: "Student Information MCP Server is running" });
 });
 

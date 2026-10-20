@@ -1,6 +1,8 @@
-﻿import {
+﻿
+import {
   McpServer,
-  createMcpHandler
+  createMcpHandler,
+  requireScopes
 } from "@modelcontextprotocol/server";
 import {
   createMcpExpressApp,
@@ -83,11 +85,13 @@ function createServer() {
     version: "1.2.0"
   });
 
+  // READ: Retrieve all student records.
   server.registerTool(
     "list_students",
     {
       description: "Retrieve all student records. Requires read:students permission.",
-      inputSchema: z.object({})
+      inputSchema: z.object({}),
+      scopeChallenge: requireScopes("read:students")
     },
     async (_args, ctx) => {
       if (!hasScope(ctx, "read:students")) {
@@ -103,13 +107,15 @@ function createServer() {
     }
   );
 
+  // READ: Search by student ID, name, or email.
   server.registerTool(
     "search_student",
     {
       description: "Search students by student ID, name, or email. Requires read:students permission.",
       inputSchema: z.object({
         query: z.string().trim().min(1).describe("Student ID, name, or email")
-      })
+      }),
+      scopeChallenge: requireScopes("read:students")
     },
     async ({ query }, ctx) => {
       if (!hasScope(ctx, "read:students")) {
@@ -133,6 +139,7 @@ function createServer() {
     }
   );
 
+  // WRITE: Insert a student, requiring explicit confirmation.
   server.registerTool(
     "insert_student",
     {
@@ -140,7 +147,8 @@ function createServer() {
       inputSchema: z.object({
         ...studentFields,
         confirm: z.boolean().describe("Must be true to authorize insertion")
-      })
+      }),
+      scopeChallenge: requireScopes("write:students")
     },
     async ({ confirm, ...student }, ctx) => {
       if (!hasScope(ctx, "write:students")) {
@@ -148,7 +156,10 @@ function createServer() {
       }
 
       if (!confirm) {
-        return result("Insertion cancelled. Set confirm=true only when authorized to add this student.", true);
+        return result(
+          "Insertion cancelled. Set confirm=true only when authorized to add this student.",
+          true
+        );
       }
 
       try {
@@ -163,6 +174,7 @@ function createServer() {
     }
   );
 
+  // WRITE: Update a student, requiring explicit confirmation.
   server.registerTool(
     "update_student",
     {
@@ -175,7 +187,8 @@ function createServer() {
         semester: studentFields.semester,
         contact: studentFields.contact,
         confirm: z.boolean().describe("Must be true to authorize the update")
-      })
+      }),
+      scopeChallenge: requireScopes("write:students")
     },
     async ({ studentId, confirm, ...updates }, ctx) => {
       if (!hasScope(ctx, "write:students")) {
@@ -183,7 +196,10 @@ function createServer() {
       }
 
       if (!confirm) {
-        return result("Update cancelled. Set confirm=true only after verifying the student and changes.", true);
+        return result(
+          "Update cancelled. Set confirm=true only after verifying the student and changes.",
+          true
+        );
       }
 
       try {
@@ -201,6 +217,7 @@ function createServer() {
     }
   );
 
+  // WRITE: Permanently delete a student, requiring explicit confirmation.
   server.registerTool(
     "delete_student",
     {
@@ -208,7 +225,8 @@ function createServer() {
       inputSchema: z.object({
         studentId: z.string().trim().min(1).describe("Exact student ID to delete"),
         confirm: z.boolean().describe("Must be true to authorize permanent deletion")
-      })
+      }),
+      scopeChallenge: requireScopes("write:students")
     },
     async ({ studentId, confirm }, ctx) => {
       if (!hasScope(ctx, "write:students")) {
@@ -216,7 +234,10 @@ function createServer() {
       }
 
       if (!confirm) {
-        return result("Deletion cancelled. Set confirm=true only after verifying the exact student ID and obtaining authorization.", true);
+        return result(
+          "Deletion cancelled. Set confirm=true only after verifying the exact student ID and obtaining authorization.",
+          true
+        );
       }
 
       try {
@@ -256,7 +277,6 @@ app.use(
 const handler = createMcpHandler(createServer);
 const nodeHandler = toNodeHandler(handler);
 
-
 const requireAuthorizationHeader = (req, res, next) => {
   const authorization = req.get("authorization");
 
@@ -278,17 +298,15 @@ const requireAuthorizationHeader = (req, res, next) => {
 app.all(
   "/mcp",
   requireAuthorizationHeader,
-    requireBearerAuth({
+  requireBearerAuth({
     verifier,
     expectedResource: resourceUrl,
-    resourceMetadataUrl,
-    requiredScopes: ["read:students"]
+    resourceMetadataUrl
   }),
   (req, res) => {
     void nodeHandler(req, res, req.body);
   }
 );
-
 
 app.get("/", (_req, res) => {
   res.json({ message: "Student Information MCP Server is running" });

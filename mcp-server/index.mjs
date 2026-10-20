@@ -248,7 +248,8 @@ const app = createMcpExpressApp({
 app.use(
   mcpAuthMetadataRouter({
     oauthMetadata,
-    resourceServerUrl: resourceUrl
+    resourceServerUrl: resourceUrl,
+    scopesSupported: ["read:students", "write:students"]
   })
 );
 

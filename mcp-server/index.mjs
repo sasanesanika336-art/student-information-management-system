@@ -278,10 +278,11 @@ const requireAuthorizationHeader = (req, res, next) => {
 app.all(
   "/mcp",
   requireAuthorizationHeader,
-  requireBearerAuth({
+    requireBearerAuth({
     verifier,
     expectedResource: resourceUrl,
-    resourceMetadataUrl
+    resourceMetadataUrl,
+    requiredScopes: ["read:students"]
   }),
   (req, res) => {
     void nodeHandler(req, res, req.body);

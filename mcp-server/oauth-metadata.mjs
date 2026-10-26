@@ -1,4 +1,4 @@
-﻿const domain = process.env.AUTH0_DOMAIN;
+const domain = process.env.AUTH0_DOMAIN;
 if (!domain) {
   throw new Error("AUTH0_DOMAIN must be configured.");
 }
@@ -16,5 +16,5 @@ export const oauthMetadata = {
     "client_secret_post"
   ],
   code_challenge_methods_supported: ["S256"],
-  scopes_supported: ["read:students", "write:students"]
+  scopes_supported: ["read:students", "write:students", "write:frontend"]
 };

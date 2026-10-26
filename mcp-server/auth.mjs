@@ -1,4 +1,4 @@
-﻿import { createRemoteJWKSet, jwtVerify } from "jose";
+import { createRemoteJWKSet, jwtVerify } from "jose";
 import { OAuthError, OAuthErrorCode } from "@modelcontextprotocol/server";
 
 const domain = process.env.AUTH0_DOMAIN;
@@ -42,6 +42,7 @@ export const verifier = {
       console.log("Auth0 permission diagnostic:", {
         hasRead: scopes.includes("read:students"),
         hasWrite: scopes.includes("write:students"),
+        hasFrontendWrite: scopes.includes("write:frontend"),
         scopeCount: scopes.length
       });
 

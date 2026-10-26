@@ -1,4 +1,4 @@
-﻿
+
 import {
   McpServer,
   createMcpHandler
@@ -6,6 +6,14 @@ import {
 import { createMcpExpressApp } from "@modelcontextprotocol/express";
 import { toNodeHandler } from "@modelcontextprotocol/node";
 import * as z from "zod/v4";
+import {
+  requireBearerAuth,
+  mcpAuthMetadataRouter,
+  getOAuthProtectedResourceMetadataUrl
+} from "@modelcontextprotocol/express";
+import { verifier } from "./auth.mjs";
+import { oauthMetadata } from "./oauth-metadata.mjs";
+import { frontendEditorHandler } from "./frontend-editor.mjs";
 
 const API_URL =
   process.env.STUDENT_API_URL ||
@@ -214,6 +222,31 @@ app.get("/", (_req, res) => {
   res.json({ message: "Student Information MCP Server is running" });
 });
 
+const editorResourceUrl = new URL(
+  "https://student-information-mcp.onrender.com/frontend-mcp"
+);
+
+app.use(mcpAuthMetadataRouter({
+  oauthMetadata,
+  resourceServerUrl: editorResourceUrl,
+  scopesSupported: ["write:frontend"]
+}));
+
+const frontendNodeHandler = toNodeHandler(frontendEditorHandler);
+
+app.all(
+  "/frontend-mcp",
+  requireBearerAuth({
+    verifier,
+    requiredScopes: ["write:frontend"],
+    expectedResource: new URL(process.env.AUTH0_AUDIENCE),
+    resourceMetadataUrl:
+      getOAuthProtectedResourceMetadataUrl(editorResourceUrl)
+  }),
+  (req, res) => {
+    void frontendNodeHandler(req, res, req.body);
+  }
+);
 const PORT = process.env.PORT || 3001;
 
 app.listen(PORT, "0.0.0.0", () => {

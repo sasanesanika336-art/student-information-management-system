@@ -22,6 +22,13 @@ export const verifier = {
         algorithms: ["RS256"]
       });
 
+      console.log("Auth0 token claims diagnostic:", {
+  audience: payload.aud,
+  scope: payload.scope ?? null,
+  permissions: payload.permissions ?? null,
+  claimNames: Object.keys(payload)
+});
+
       if (
         typeof payload.sub !== "string" ||
         typeof payload.exp !== "number"

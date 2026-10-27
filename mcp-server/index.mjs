@@ -216,9 +216,27 @@ const app = createMcpExpressApp({
 const handler = createMcpHandler(createServer);
 const nodeHandler = toNodeHandler(handler);
 
-app.all("/mcp", (req, res) => {
-  void nodeHandler(req, res, req.body);
-});
+const mainResourceUrl = new URL(
+  "https://student-information-mcp.onrender.com/"
+);
+
+app.all(
+  "/mcp",
+  requireBearerAuth({
+    verifier,
+    requiredScopes: [
+      "read:students",
+      "write:students",
+      "write:frontend"
+    ],
+    expectedResource: mainResourceUrl,
+    resourceMetadataUrl:
+      getOAuthProtectedResourceMetadataUrl(mainResourceUrl)
+  }),
+  (req, res) => {
+    void nodeHandler(req, res, req.body);
+  }
+);
 
 app.get("/", (_req, res) => {
   res.json({ message: "Student Information MCP Server is running" });
@@ -234,13 +252,9 @@ app.use(mcpAuthMetadataRouter({
   scopesSupported: ["write:frontend"]
 }));
 
-const unifiedResourceUrl = new URL(
-  "https://student-information-mcp.onrender.com/"
-);
-
 app.use(mcpAuthMetadataRouter({
   oauthMetadata,
-  resourceServerUrl: unifiedResourceUrl,
+  resourceServerUrl: mainResourceUrl,
   scopesSupported: ["read:students", "write:students", "write:frontend"]
 }));
 const frontendNodeHandler = toNodeHandler(frontendEditorHandler);
@@ -258,22 +272,7 @@ app.all(
     void frontendNodeHandler(req, res, req.body);
   }
 );
-const unifiedHandler = createMcpHandler(createServer);
-const unifiedNodeHandler = toNodeHandler(unifiedHandler);
 
-app.all(
-  "/unified-mcp",
-  requireBearerAuth({
-    verifier,
-    requiredScopes: ["read:students", "write:students", "write:frontend"],
-    expectedResource: unifiedResourceUrl,
-    resourceMetadataUrl:
-      getOAuthProtectedResourceMetadataUrl(unifiedResourceUrl)
-  }),
-  (req, res) => {
-    void unifiedNodeHandler(req, res, req.body);
-  }
-);
 const PORT = process.env.PORT || 3001;
 
 app.listen(PORT, "0.0.0.0", () => {

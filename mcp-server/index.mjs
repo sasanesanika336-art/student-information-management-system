@@ -224,11 +224,7 @@ app.all(
   "/mcp",
   requireBearerAuth({
     verifier,
-    requiredScopes: [
-      "read:students",
-      "write:students",
-      "write:frontend"
-    ],
+    requiredScopes: ["read:students"],
     expectedResource: mainResourceUrl,
     resourceMetadataUrl:
       getOAuthProtectedResourceMetadataUrl(mainResourceUrl)

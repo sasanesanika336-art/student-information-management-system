@@ -1,4 +1,4 @@
-﻿
+
 import {
   McpServer,
   createMcpHandler
@@ -235,7 +235,7 @@ app.use(mcpAuthMetadataRouter({
 }));
 
 const unifiedResourceUrl = new URL(
-  "https://student-information-mcp.onrender.com/unified-mcp"
+  "https://student-information-mcp.onrender.com/"
 );
 
 app.use(mcpAuthMetadataRouter({

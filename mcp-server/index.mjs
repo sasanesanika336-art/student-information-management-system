@@ -1,4 +1,4 @@
-
+﻿
 import {
   McpServer,
   createMcpHandler
@@ -13,7 +13,7 @@ import {
 } from "@modelcontextprotocol/express";
 import { verifier } from "./auth.mjs";
 import { oauthMetadata } from "./oauth-metadata.mjs";
-import { frontendEditorHandler } from "./frontend-editor.mjs";
+import { registerFrontendEditorTools, frontendEditorHandler } from "./frontend-editor.mjs";
 
 const API_URL =
   process.env.STUDENT_API_URL ||
@@ -197,6 +197,8 @@ function createServer() {
     }
   );
 
+  registerFrontendEditorTools(server);
+
   return server;
 }
 
@@ -232,6 +234,15 @@ app.use(mcpAuthMetadataRouter({
   scopesSupported: ["write:frontend"]
 }));
 
+const unifiedResourceUrl = new URL(
+  "https://student-information-mcp.onrender.com/unified-mcp"
+);
+
+app.use(mcpAuthMetadataRouter({
+  oauthMetadata,
+  resourceServerUrl: unifiedResourceUrl,
+  scopesSupported: ["read:students", "write:students", "write:frontend"]
+}));
 const frontendNodeHandler = toNodeHandler(frontendEditorHandler);
 
 app.all(
@@ -245,6 +256,22 @@ app.all(
   }),
   (req, res) => {
     void frontendNodeHandler(req, res, req.body);
+  }
+);
+const unifiedHandler = createMcpHandler(createServer);
+const unifiedNodeHandler = toNodeHandler(unifiedHandler);
+
+app.all(
+  "/unified-mcp",
+  requireBearerAuth({
+    verifier,
+    requiredScopes: ["read:students", "write:students", "write:frontend"],
+    expectedResource: unifiedResourceUrl,
+    resourceMetadataUrl:
+      getOAuthProtectedResourceMetadataUrl(unifiedResourceUrl)
+  }),
+  (req, res) => {
+    void unifiedNodeHandler(req, res, req.body);
   }
 );
 const PORT = process.env.PORT || 3001;

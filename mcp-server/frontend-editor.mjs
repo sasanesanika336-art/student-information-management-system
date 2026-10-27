@@ -56,11 +56,7 @@ function validatePath(path) {
   }
 }
 
-function createFrontendEditorServer() {
-  const server = new McpServer({
-    name: "student-frontend-editor",
-    version: "1.0.0"
-  });
+export function registerFrontendEditorTools(server) {
 
   server.registerTool(
     "read_frontend_file",
@@ -141,6 +137,16 @@ function createFrontendEditorServer() {
     }
   );
 
+}
+
+
+function createFrontendEditorServer() {
+  const server = new McpServer({
+    name: "student-frontend-editor",
+    version: "1.0.0"
+  });
+
+  registerFrontendEditorTools(server);
   return server;
 }
 

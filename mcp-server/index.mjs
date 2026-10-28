@@ -1,23 +1,48 @@
-
+﻿
 import {
   McpServer,
   createMcpHandler
 } from "@modelcontextprotocol/server";
 import { createMcpExpressApp } from "@modelcontextprotocol/express";
 import { toNodeHandler } from "@modelcontextprotocol/node";
+import { timingSafeEqual } from "node:crypto";
 import * as z from "zod/v4";
+
 import {
-  requireBearerAuth,
-  mcpAuthMetadataRouter,
-  getOAuthProtectedResourceMetadataUrl
-} from "@modelcontextprotocol/express";
-import { verifier } from "./auth.mjs";
-import { oauthMetadata } from "./oauth-metadata.mjs";
-import { registerFrontendEditorTools, frontendEditorHandler } from "./frontend-editor.mjs";
+  registerFrontendEditorTools,
+  frontendEditorHandler
+} from "./frontend-editor.mjs";
 
 const API_URL =
   process.env.STUDENT_API_URL ||
   "https://student-information-management-system-api.onrender.com/api/students";
+
+// Shared secret used to authenticate incoming Claude MCP requests.
+// Configure MCP_CONNECTOR_SECRET in both local .env and Render.
+function requireConnectorSecret(req, res, next) {
+  const expected = process.env.MCP_CONNECTOR_SECRET;
+
+  if (!expected) {
+    return res.status(503).json({
+      error: "MCP connector secret is not configured."
+    });
+  }
+
+  const supplied = req.get("x-mcp-connector-secret") || "";
+  const expectedBuffer = Buffer.from(expected);
+  const suppliedBuffer = Buffer.from(supplied);
+
+  if (
+    suppliedBuffer.length !== expectedBuffer.length ||
+    !timingSafeEqual(suppliedBuffer, expectedBuffer)
+  ) {
+    return res.status(401).json({
+      error: "Unauthorized"
+    });
+  }
+
+  next();
+}
 
 const studentFields = {
   studentId: z.string().trim().min(1).describe("Unique student ID"),
@@ -62,7 +87,9 @@ async function apiRequest(url, options = {}) {
 
   if (!response.ok) {
     throw new Error(
-      `Student API returned HTTP ${response.status}: ${data.message || "Request failed"}`
+      `Student API returned HTTP ${response.status}: ${
+        data.message || "Request failed"
+      }`
     );
   }
 
@@ -102,11 +129,13 @@ function createServer() {
       try {
         const students = await apiRequest(API_URL);
         const term = query.toLowerCase();
+
         const matches = students.filter(student =>
           [student.studentId, student.name, student.email].some(value =>
             String(value ?? "").toLowerCase().includes(term)
           )
         );
+
         return result(JSON.stringify(matches, null, 2));
       } catch (error) {
         return result(`Could not search students: ${error.message}`, true);
@@ -127,11 +156,13 @@ function createServer() {
       if (!confirm) {
         return result("Insertion cancelled. Set confirm=true to proceed.", true);
       }
+
       try {
         const created = await apiRequest(API_URL, {
           method: "POST",
           body: JSON.stringify(student)
         });
+
         return result(JSON.stringify(created, null, 2));
       } catch (error) {
         return result(`Could not insert student: ${error.message}`, true);
@@ -157,6 +188,7 @@ function createServer() {
       if (!confirm) {
         return result("Update cancelled. Set confirm=true to proceed.", true);
       }
+
       try {
         const updated = await apiRequest(
           `${API_URL}/${encodeURIComponent(studentId)}`,
@@ -165,6 +197,7 @@ function createServer() {
             body: JSON.stringify(updates)
           }
         );
+
         return result(JSON.stringify(updated, null, 2));
       } catch (error) {
         return result(`Could not update student: ${error.message}`, true);
@@ -185,11 +218,13 @@ function createServer() {
       if (!confirm) {
         return result("Deletion cancelled. Set confirm=true to proceed.", true);
       }
+
       try {
         const deleted = await apiRequest(
           `${API_URL}/${encodeURIComponent(studentId)}`,
           { method: "DELETE" }
         );
+
         return result(JSON.stringify(deleted, null, 2));
       } catch (error) {
         return result(`Could not delete student: ${error.message}`, true);
@@ -197,6 +232,7 @@ function createServer() {
     }
   );
 
+  // Register both frontend editor tools.
   registerFrontendEditorTools(server);
 
   return server;
@@ -216,58 +252,23 @@ const app = createMcpExpressApp({
 const handler = createMcpHandler(createServer);
 const nodeHandler = toNodeHandler(handler);
 
-const mainResourceUrl = new URL(
-  "https://student-information-mcp.onrender.com/"
-);
-
-app.all(
-  "/mcp",
-  requireBearerAuth({
-    verifier,
-    requiredScopes: ["read:students"],
-    expectedResource: mainResourceUrl,
-    resourceMetadataUrl:
-      getOAuthProtectedResourceMetadataUrl(mainResourceUrl)
-  }),
-  (req, res) => {
-    void nodeHandler(req, res, req.body);
-  }
-);
-
 app.get("/", (_req, res) => {
-  res.json({ message: "Student Information MCP Server is running" });
+  res.json({
+    message: "Student Information MCP Server is running"
+  });
 });
 
-const editorResourceUrl = new URL(
-  "https://student-information-mcp.onrender.com/frontend-mcp"
-);
+// Protect all student MCP tools with the shared secret.
+app.all("/mcp", requireConnectorSecret, (req, res) => {
+  void nodeHandler(req, res, req.body);
+});
 
-app.use(mcpAuthMetadataRouter({
-  oauthMetadata,
-  resourceServerUrl: editorResourceUrl,
-  scopesSupported: ["write:frontend"]
-}));
-
-app.use(mcpAuthMetadataRouter({
-  oauthMetadata,
-  resourceServerUrl: mainResourceUrl,
-  scopesSupported: ["read:students", "write:students", "write:frontend"]
-}));
+// Protect frontend file reading and GitHub commits with the same secret.
 const frontendNodeHandler = toNodeHandler(frontendEditorHandler);
 
-app.all(
-  "/frontend-mcp",
-  requireBearerAuth({
-    verifier,
-    requiredScopes: ["write:frontend"],
-    expectedResource: new URL(process.env.AUTH0_AUDIENCE),
-    resourceMetadataUrl:
-      getOAuthProtectedResourceMetadataUrl(editorResourceUrl)
-  }),
-  (req, res) => {
-    void frontendNodeHandler(req, res, req.body);
-  }
-);
+app.all("/frontend-mcp", requireConnectorSecret, (req, res) => {
+  void frontendNodeHandler(req, res, req.body);
+});
 
 const PORT = process.env.PORT || 3001;
 

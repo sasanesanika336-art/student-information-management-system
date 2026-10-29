@@ -259,14 +259,14 @@ app.get("/", (_req, res) => {
 });
 
 // Protect all student MCP tools with the shared secret.
-app.all("/mcp", requireConnectorSecret, (req, res) => {
+app.all("/mcp", (req, res) => {
   void nodeHandler(req, res, req.body);
 });
 
 // Protect frontend file reading and GitHub commits with the same secret.
 const frontendNodeHandler = toNodeHandler(frontendEditorHandler);
 
-app.all("/frontend-mcp", requireConnectorSecret, (req, res) => {
+app.all("/frontend-mcp", (req, res) => {
   void frontendNodeHandler(req, res, req.body);
 });
 

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import axios from "axios";
 import "./App.css";
@@ -30,7 +29,7 @@ function App() {
   const loadStudents = async () => {
     try {
       const res = await axios.get(API);
-setStudents(Array.isArray(res.data) ? res.data : []);
+      setStudents(Array.isArray(res.data) ? res.data : []);
     } catch {
       notify("Could not load students. Check the backend.", true);
     }
@@ -117,15 +116,15 @@ setStudents(Array.isArray(res.data) ? res.data : []);
     try {
       const res = await axios.get(`${API}/${encodeURIComponent(search.trim())}`);
 
-const result = res.data;
-const studentList = Array.isArray(result)
-  ? result
-  : result && result.studentId
-    ? [result]
-    : [];
+      const result = res.data;
+      const studentList = Array.isArray(result)
+        ? result
+        : result && result.studentId
+          ? [result]
+          : [];
 
-setStudents(studentList);
-notify(studentList.length ? "Search completed." : "Student not found.", !studentList.length);
+      setStudents(studentList);
+      notify(studentList.length ? "Search completed." : "Student not found.", !studentList.length);
     } catch (err) {
       setStudents([]);
       notify(err.response?.data?.message || "Student not found.", true);
@@ -135,19 +134,30 @@ notify(studentList.length ? "Search completed." : "Student not found.", !student
   return (
     <main className="container">
       <header>
-        <h1>Student Information Management System</h1>
-        <p>Manage student records in one place</p>
+        <div className="brand-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 10 12 5 2 10l10 5 10-5z" />
+            <path d="M6 12v5c0 1.5 2.7 3 6 3s6-1.5 6-3v-5" />
+            <path d="M22 10v6" />
+          </svg>
+        </div>
+        <div className="header-text">
+          <h1>Student Information Management System</h1>
+          <p>Manage student records in one place</p>
+        </div>
       </header>
 
       {message && (
         <div className={error ? "message error" : "message"}>
-          {message}
-          <button className="close" onClick={() => setMessage("")}>×</button>
+          <span>{message}</span>
+          <button className="close" onClick={() => setMessage("")} aria-label="Dismiss message">×</button>
         </div>
       )}
 
       <section className="panel">
-        <h2>{editing ? "Update Student" : "Add Student"}</h2>
+        <div className="panel-header">
+          <h2>{editing ? "Update Student" : "Add Student"}</h2>
+        </div>
         <form onSubmit={saveStudent} className="student-form">
           {[
             ["studentId", "Student ID"],
@@ -181,7 +191,12 @@ notify(studentList.length ? "Search completed." : "Student not found.", !student
       </section>
 
       <section className="panel">
-        <h2>Student Records ({students.length})</h2>
+        <div className="panel-header">
+          <h2>Student Records</h2>
+          <span className="count-badge">
+            {students.length} {students.length === 1 ? "student" : "students"}
+          </span>
+        </div>
         <form className="search-form" onSubmit={searchStudent}>
           <input
             value={search}
@@ -211,15 +226,17 @@ notify(studentList.length ? "Search completed." : "Student not found.", !student
             <tbody>
               {students.map((s) => (
                 <tr key={s._id || s.studentId}>
-                  <td>{s.studentId}</td>
-                  <td>{s.name}</td>
-                  <td>{s.email}</td>
-                  <td>{s.department}</td>
-                  <td>{s.semester}</td>
-                  <td>{s.contact}</td>
+                  <td data-label="Student ID"><span className="id-chip">{s.studentId}</span></td>
+                  <td data-label="Name">{s.name}</td>
+                  <td data-label="Email">{s.email}</td>
+                  <td data-label="Department">{s.department}</td>
+                  <td data-label="Semester">{s.semester}</td>
+                  <td data-label="Contact">{s.contact}</td>
                   <td className="actions">
-                    <button onClick={() => editStudent(s)}>Edit</button>
-                    <button className="danger" onClick={() => deleteStudent(s.studentId)}>Delete</button>
+                    <div className="action-buttons">
+                      <button className="edit" onClick={() => editStudent(s)}>Edit</button>
+                      <button className="danger" onClick={() => deleteStudent(s.studentId)}>Delete</button>
+                    </div>
                   </td>
                 </tr>
               ))}

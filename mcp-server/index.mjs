@@ -1,4 +1,4 @@
-﻿
+
 import {
   McpServer,
   createMcpHandler
@@ -266,7 +266,7 @@ app.all("/mcp", (req, res) => {
 // Protect frontend file reading and GitHub commits with the same secret.
 const frontendNodeHandler = toNodeHandler(frontendEditorHandler);
 
-app.all("/frontend-mcp", (req, res) => {
+app.all("/frontend-mcp", requireConnectorSecret, (req, res) => {
   void frontendNodeHandler(req, res, req.body);
 });
 

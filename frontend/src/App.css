@@ -257,8 +257,8 @@ th, td {
 }
 
 th {
-  background: var(--blue-50);
-  color: var(--blue-900);
+  background: #0b1f4d;
+  color: #ffffff;
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
